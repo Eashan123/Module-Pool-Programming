@@ -1,5 +1,4 @@
 # Module-Pool-Programming
-All about Module Pool Programming
 
 Things covered in this project is:
 
