@@ -1,0 +1,644 @@
+" to do,
+" create a report on click to display the values of cdhdr and cdpos after saving.
+
+" for lock objects you dont need to call deque module because system does that automatically for you.
+" to see if the object is locked you can visit sm12.
+" blood group and dob have been marked as log objects, new data element has been added instead of sydatum and char5
+
+" change log will be performed before saving.
+REPORT ZZEMP_MASTER.
+
+INCLUDE FYZEMP_MASTERCDT. "change log object, we need to copy paste.
+
+*TABLES: ZZEMP_MASTER2.
+
+DATA: gs_emp_master type zzemp_master2.
+DATA: gs_emp_master_o type zzemp_master2. " this will hold the old values.
+Data: gv_flag type flag.
+
+DATA: garg like seqg3-garg, " this is for displaying the name of the user who has locked our object.
+      enq like STANDARD TABLE OF seqg3 WITH HEADER LINE,
+      gv_msg TYPE string.
+
+DATA: gt_icdtxt TYPE STANDARD TABLE OF cdtxt, " this declaration is for log objects.
+      gv_objectid TYPE cdhdr-objectid.
+
+DATA: gv_cursor TYPE char50. " handling double click events.
+
+Types: BEGIN OF ty_disp,
+  empid TYPE zzemp_master2-empid,
+  title TYPE zzemp_master2-title,
+  first_name TYPE zzemp_master2-first_name,
+  pan TYPE zzemp_master2-pan,
+  mobile1 TYPE zzemp_master2-mobile1,
+  END OF ty_disp.
+
+data: it_disp type TABLE OF ty_disp,
+      ws_disp type ty_disp.
+
+
+DATA: R_M, R_F, R_U.
+
+DATA: gv_id type vrm_id,
+      gv_idb type vrm_id,
+      gt_values type vrm_values,
+      gs_values LIKE LINE OF gt_values.
+
+DATA: gv_init.
+
+DATA: gv_len type i,
+      gv_ans. "len of pancard must be 10
+
+Data: gt_state_city TYPE STANDARD TABLE OF zstate_city,
+      gs_state_city TYPE zstate_city.
+
+
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text01.
+
+  PARAMETERS: p_empid type zzemp_master2-empid OBLIGATORY. " since it's a primary key
+
+
+  SELECTION-SCREEN end of BLOCK b1.
+
+
+  START-OF-SELECTION.
+
+  " call enque function module program lock object.
+
+  CALL FUNCTION 'ENQUEUE_EZZEMP_MASTER'
+   EXPORTING
+     MODE_ZZEMP_MASTER       = 'E'
+     MANDT                   = SY-MANDT
+     EMPID                   = P_EMPID " the id on which we are working, this we'll lock
+*     X_EMPID                 = ' '
+*     _SCOPE                  = '2'
+*     _WAIT                   = ' '
+*     _COLLECT                = ' '
+   EXCEPTIONS
+     FOREIGN_LOCK            = 1
+     SYSTEM_FAILURE          = 2
+     OTHERS                  = 3
+            .
+*  IF sy-subrc <> 0.
+  IF sy-subrc = 1. " that is foreign lock
+* Implement suitable error handling here
+
+    " if suppose the object is already locked by other user you need to give a message.
+    " for this use this function to display the name of the user who has locked your object.
+
+    CONCATENATE sy-mandt p_empid INTO garg.
+
+    " error no values getting stored in enq table.
+
+    CALL FUNCTION 'ENQUE_READ'
+     EXPORTING
+       GCLIENT       = SY-MANDT
+       GNAME         = 'zzemp_master' "the name of the table on which you want to put the lock.
+       GARG          = GARG " in this you need to pass the client id and the primary key.
+*       GUNAME        = SY-UNAME
+*     IMPORTING
+*       NUMBER        =
+*       SUBRC         =
+      TABLES
+        enq           = ENQ " in the output you need to read this table
+      EXCEPTIONS
+        COMMUNICATION_FAILURE = 1
+        SYSTEM_AILURE = 2
+        OTHERS = 3.
+
+        if sy-subrc <> 0.
+          MESSAGE 'something went wrong' TYPE 'S'.
+          endif.
+
+              .
+
+" read the first index of the table sm12 to get who has locked the object.
+
+    READ TABLE enq INDEX 1.
+    CONCATENATE 'the object is locked by the user ' enq-GUNAME INTO gv_msg SEPARATED BY space.
+
+*    MESSAGE gv_msg TYPE 'S'.
+
+" message class
+
+    MESSAGE I002(ZEMP_MASTER) with enq-guname. " this will come as a small popup on the screen.
+    MESSAGE S002(ZEMP_MASTER) with enq-guname. " this will come as a normal message on the footer of the screen.
+    SET SCREEN 0.
+
+
+*    MESSAGE 'the object is locked by other user' TYPE 'S'.
+*    SET SCREEN 0.
+
+
+  ELSE.
+
+
+
+
+  select SINGLE * from zzemp_master2 into CORRESPONDING FIELDS OF gs_emp_master
+    where empid = p_empid.
+
+    gs_emp_master-empid = p_empid.
+
+      if gs_emp_master-gender = 'M'.
+
+        r_m = 'X'.
+
+ELSEIF gs_emp_master-gender = 'F'.
+  r_f = 'X'.
+
+  else.
+    r_u = 'X'.
+
+    endif.
+
+
+    call SCREEN 0100.
+
+    ENDIF.
+
+
+
+  end-of-SELECTION.
+
+
+
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0100  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0100 OUTPUT.
+  SET PF-STATUS 'PF2'.
+  SET TITLEBAR 'T2'.
+
+  if gv_init is INITIAL.
+    PERFORM set_list_box.
+    gv_init = 'X'.
+    ENDIF.
+
+  if gs_emp_master-marital_status ne 'M'.
+
+    loop AT SCREEN.
+
+      if screen-group1 = 'HD1'. " there are 4 groups.
+"        screen-input = 0. " this will disable spouse field if I am single
+        screen-active = 0. " this will disappear spouse field if I am single
+        MODIFY SCREEN.
+
+      endif.
+
+      ENDLOOP.
+
+      CLEAR: gs_emp_master-SPOUSE.
+
+    ENDIF.
+
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  EXT  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE ext INPUT.
+SET SCREEN 0.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0100  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0100 INPUT.
+
+* gs_emp_master-marital_status = 'S'. " if you want to set default value to be S single.
+
+CASE SY-UCOMM.
+
+  WHEN 'BACK' OR 'EXIT' OR 'CANCEL'.
+    SET SCREEN 0.
+
+  WHEN 'SAVE'.
+
+    PERFORM save_confirmation.
+    if gv_ans = '1'.
+      PERFORM SAVE.
+      ENDIF.
+
+  WHEN 'STATE'.
+    PERFORM set_state_city.
+
+  WHEN 'GENDR'. "refer functoncode of male radio button
+    if r_m is not INITIAL.
+      gs_emp_master-TITLE = 'MR.'.
+
+    ELSEIF r_f is NOT INITIAL.
+      gs_emp_master-TITLE = 'MRS.'.
+      ENDIF.
+
+
+
+  WHEN 'DISP'.
+    CALL SCREEN 0300
+
+    STARTING AT 4 10
+    ENDING AT 50 20.
+
+
+  WHEN 'CLOSE'.
+    LEAVE PROGRAM.
+
+  WHEN 'PICK'.
+    get CURSOR FIELD gv_cursor.
+
+    if gv_cursor = 'GS_EMP_MASTER-EMPID'.
+      CALL TRANSACTION 'XK03'.
+      endif.
+    ENDCASE.
+  CLEAR: SY-UCOMM.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Form  SAVE
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM save .
+
+if gs_emp_master-createdby is INITIAL.
+  gs_emp_master-createdby = sy-uname.
+  gs_emp_master-createdon = sy-datum.
+  gs_emp_master-time = sy-uzeit.
+
+  endif.
+
+  if r_m is not INITIAL.
+
+    gs_emp_master-gender = 'M'.
+
+  ELSEIF r_f is not INITIAL.
+
+    gs_emp_master-gender = 'F'.
+
+*  ELSEIF r_u is not INITIAL.
+*
+*    gs_emp_master-gender = 'U'.
+
+  else.
+    gs_emp_master-gender = 'U'.
+
+    endif.
+
+  PERFORM change_log.
+
+  modify zzemp_master2 from gs_emp_master.
+
+  MESSAGE 'Data saved successfully' type 'S'.
+
+  SET SCREEN 0.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SET_LIST_BOX
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM set_list_box .
+
+CLEAR: gt_values[], gs_values.
+
+gs_values-key = 'MR.'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'MRS.'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'MISS.'.
+APPEND gs_values to gt_values.
+
+SORT gt_values by key.
+Delete ADJACENT DUPLICATES FROM gt_values COMPARING key.
+
+gv_id = 'gs_emp_master-TITLE'.
+
+CALL FUNCTION 'VRM_SET_VALUES'
+  EXPORTING
+    id                    = gv_id
+    values                = gt_values
+ EXCEPTIONS
+   ID_ILLEGAL_NAME       = 1
+   OTHERS                = 2.
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+  MESSAGE 'something wrong has happened, we need to debug what' type 'E'.
+ENDIF.
+
+CLEAR: gs_values, gt_values[].
+
+
+"""""""""""""""
+
+
+gs_values-key = 'A+'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'B+'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'AB+'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'AB-'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'O+'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'O-'.
+APPEND gs_values to gt_values.
+
+*SORT gt_values by key.
+Delete ADJACENT DUPLICATES FROM gt_values COMPARING key.
+
+gv_idb = 'gs_emp_master-BLODD_GROUP'.
+
+CALL FUNCTION 'VRM_SET_VALUES'
+  EXPORTING
+    id                    = gv_idb
+    values                = gt_values
+ EXCEPTIONS
+   ID_ILLEGAL_NAME       = 1
+   OTHERS                = 2.
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+  MESSAGE 'something wrong has happened, we need to debug what' type 'E'.
+ENDIF.
+
+CLEAR: gs_values, gt_values[].
+
+
+
+""""""""""""""""""""
+
+" city belonging to a state only.
+
+CLEAR: gt_state_city.
+*select DISTINCT ( state ) FROM zstate_city INTO CORRESPONDING FIELDS OF gt_state_city.
+  select * FROM zstate_city INTO CORRESPONDING FIELDS OF TABLE gt_state_city.
+    SORT gt_state_city by state.
+    delete ADJACENT DUPLICATES FROM gt_state_city COMPARING state.
+
+    loop at gt_state_city INTO gs_state_city.
+
+      gs_values-key = gs_state_city-state.
+      APPEND gs_values to gt_values.
+
+      CLEAR: gs_state_city.
+
+
+      ENDLOOP.
+
+
+      SORT gt_values by key.
+      Delete ADJACENT DUPLICATES FROM gt_values COMPARING key.
+
+      gv_id = 'gs_emp_master-STATE'.
+
+      CALL FUNCTION 'VRM_SET_VALUES'
+        EXPORTING
+          id                    = gv_id
+          values                = gt_values
+       EXCEPTIONS
+         ID_ILLEGAL_NAME       = 1
+         OTHERS                = 2.
+      IF sy-subrc <> 0.
+*       Implement suitable error handling here
+        MESSAGE 'something wrong has happened, we need to debug what' type 'E'.
+      ENDIF.
+
+
+""""""""""""""
+
+" Title
+
+CLEAR: gt_values[], gs_values.
+
+gs_values-key = 'M'.
+APPEND gs_values to gt_values.
+
+gs_values-key = 'S'.
+APPEND gs_values to gt_values.
+
+Delete ADJACENT DUPLICATES FROM gt_values COMPARING key.
+
+gv_id = 'gs_emp_master-Marital_Status'.
+
+CALL FUNCTION 'VRM_SET_VALUES'
+  EXPORTING
+    id                    = gv_id
+    values                = gt_values
+ EXCEPTIONS
+   ID_ILLEGAL_NAME       = 1
+   OTHERS                = 2.
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+  MESSAGE 'something wrong has happened, we need to debug what' type 'E'.
+ENDIF.
+
+CLEAR: gs_values, gt_values[].
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  SET_STATE_CITY
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM set_state_city .
+
+SELECT * FROM zstate_city INTO CORRESPONDING FIELDS OF TABLE gt_state_city
+  WHERE state = gs_emp_master-STATE.
+
+  CLEAR : gt_values[], gs_values.
+
+  loop at gt_state_city INTO gs_state_city.
+    gs_values-key = gs_state_city-city.
+   APPEND gs_values to gt_values.
+   CLEAR: gs_values.
+   ENDLOOP.
+
+   sort gt_values by key.
+   DELETE ADJACENT DUPLICATES FROM gt_values COMPARING key.
+
+   gv_id = 'gs_emp_master-city'.
+
+         CALL FUNCTION 'VRM_SET_VALUES'
+        EXPORTING
+          id                    = gv_id
+          values                = gt_values
+       EXCEPTIONS
+         ID_ILLEGAL_NAME       = 1
+         OTHERS                = 2.
+      IF sy-subrc <> 0.
+*       Implement suitable error handling here
+        MESSAGE 'something wrong has happened, we need to debug what' type 'E'.
+      ENDIF.
+
+      CLEAR: gs_values, gt_values[].
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  FIELD_VALIDATION  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE field_validation INPUT.
+
+" we want validation to happen when the user clicks on the save button.
+
+case sy-ucomm.
+
+  when 'SAVE'.
+    if gs_emp_master-pan is INITIAL.
+*      MESSAGE 'Enter the pancard number' type 'E'.
+
+      MESSAGE E000(zemp_master).
+
+      else.
+        gv_len = strlen( gs_emp_master-pan ).
+
+        if gv_len ne 10.
+          MESSAGE 'Pan card should be of length 10' type 'E'.
+          ENDIF.
+
+     if gs_emp_master-marital_status = 'M' and gs_emp_master-SPOUSE is INITIAL.
+       MESSAGE 'Spouse name is compulsory.' type 'E'.
+       ENDIF.
+
+     if gs_emp_master-doj is INITIAL.
+
+       MESSAGE 'Date of joining is mandetory.' type 'E'.
+       ENDIF.
+
+    endif.
+    ENDCASE.
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  STATUS_0300  OUTPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE status_0300 OUTPUT.
+*  SET PF-STATUS 'xxxxxxxx'.
+  SET TITLEBAR 'T4'.
+
+  SELECT empid title first_name pan mobile1
+    from zzemp_master2 INTO TABLE it_disp
+    WHERE empid = gs_emp_master-empid.
+
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Module  USER_COMMAND_0300  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE user_command_0300 INPUT.
+CASE sy-ucomm.
+    WHEN 'EXT'.
+      CALL SCREEN 0100.
+  ENDCASE.
+
+ENDMODULE.
+*&---------------------------------------------------------------------*
+*&      Form  SAVE_CONFIRMATION
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM save_confirmation .
+CALL FUNCTION 'POPUP_TO_CONFIRM'
+  EXPORTING
+   TITLEBAR                    = 'Confirmation'
+*   DIAGNOSE_OBJECT             = ' '
+    text_question               = 'Do you want to save?'
+   TEXT_BUTTON_1               = 'Yes'
+*   ICON_BUTTON_1               = ' '
+   TEXT_BUTTON_2               = 'No'
+*   ICON_BUTTON_2               = ' '
+*   DEFAULT_BUTTON              = '1'
+   DISPLAY_CANCEL_BUTTON       = 'X'
+*   USERDEFINED_F1_HELP         = ' '
+*   START_COLUMN                = 25
+*   START_ROW                   = 6
+*   POPUP_TYPE                  =
+*   IV_QUICKINFO_BUTTON_1       = ' '
+*   IV_QUICKINFO_BUTTON_2       = ' '
+ IMPORTING                             " in the return what we'll get, we'll get answer.
+   ANSWER                      = gv_ans
+* TABLES
+*   PARAMETER                   =
+ EXCEPTIONS
+   TEXT_NOT_FOUND              = 1
+   OTHERS                      = 2
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Form  CHANGE_LOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+FORM change_log .
+
+select SINGLE * FROM zzemp_master INTO CORRESPONDING FIELDS OF gs_emp_master_o
+  WHERE empid = p_empid.
+
+  gv_objectid = p_empid.
+  CONDENSE gv_objectid.
+
+  CALL FUNCTION 'YZEMP_MASTER_WRITE_DOCUMENT' "
+    EXPORTING
+      objectid                      = GV_OBJECTID
+      tcode                         = SY-TCODE
+      utime                         = SY-UZEIT
+      udate                         = SY-DATUM
+      username                      = SY-UNAME
+*     PLANNED_CHANGE_NUMBER         = ' '
+     OBJECT_CHANGE_INDICATOR       = 'U'
+*     PLANNED_OR_REAL_CHANGES       = ' '
+*     NO_CHANGE_POINTERS            = ' '
+*     UPD_ICDTXT_YZEMP_MASTER       = ' '
+     N_ZZEMP_MASTER2               = GS_EMP_MASTER
+     O_ZZEMP_MASTER2               = GS_EMP_MASTER_O
+     UPD_ZZEMP_MASTER2             = 'U'
+    TABLES
+      icdtxt_yzemp_master           = GT_ICDTXT
+            .
+
+
+ENDFORM.
+*&---------------------------------------------------------------------*
+*&      Module  GET_DESIG  INPUT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+MODULE get_desig INPUT.
+
+ENDMODULE.
