@@ -1,5 +1,3 @@
-""" Flow Logic
-
 PROCESS BEFORE OUTPUT.
  MODULE STATUS_0100.
 *
@@ -20,84 +18,8 @@ MODULE USER_COMMAND_0100.
 Module ext at EXIT-COMMAND.
 
 PROCESS ON VALUE-REQUEST.
-  FIELD : gs_emp_master-designation MODULE get_desig.
+  FIELD : gs_emp_master-designation MODULE get_desig. " this can also
+" be provided using list box.
 
 PROCESS ON HELP-REQUEST.
   FIELD: GS_EMP_MASTER-MANAGER MODULE get_f1_help.
-
-""""""""""""""""""""
-
-Attributes:
-
-Screentype: Normal.
-
-""""""""""""""""""
-
-Element list
-
-TEMPID	Text	2	2	12	12	1
-GS_EMP_MASTER-EMPID	I/O	2	16	10	10	1	CHAR
-TFIRST	Text	2	39	12	12	1
-GS_EMP_MASTER-FIRST_NAME	I/O	2	54	20	20	1	CHAR
-TDOB	Text	2	87	15	15	1
-GS_EMP_MASTER-DOB	I/O	2	104	10	10	1	DATS
-TTITLE	Text	3	2	6	6	1
-GS_EMP_MASTER-TITLE	I/O	3	16	10	12	1	CHAR
-TMIDNAME	Text	3	38	13	13	1
-GS_EMP_MASTER-MIDDLE_NAME	I/O	3	54	20	20	1	CHAR
-TPAN	Text	3	92	10	10	1
-GS_EMP_MASTER-PAN	I/O	3	104	10	10	1	CHAR
-TLASTNAME	Text	4	40	11	11	1
-GS_EMP_MASTER-LAST_NAME	I/O	4	54	20	20	1	CHAR
-TADDR	Text	7	2	9	9	1
-GS_EMP_MASTER-ADDRESS1	I/O	7	13	40	40	1	CHAR
-TCTY	Text	7	57	6	6	1
-GS_EMP_MASTER-CITY	I/O	7	64	20	22	1	CHAR
-TCTRY	Text	7	94	9	9	1
-GS_EMP_MASTER-COUNTRY	I/O	7	106	10	10	1	CHAR
-GS_EMP_MASTER-ADDRESS2	I/O	8	13	40	40	1	CHAR
-TAREA	Text	8	57	4	4	1
-GS_EMP_MASTER-AREA	I/O	8	64	20	20	1	CHAR
-TSTATT	Text	8	88	6	6	1
-GS_EMP_MASTER-STATE	I/O	8	96	20	22	1	CHAR
-GS_EMP_MASTER-ADDRESS3	I/O	9	13	40	40	1	CHAR
-TPIN	Text	9	57	3	3	1
-GS_EMP_MASTER-PIN	I/O	9	64	6	6	1	CHAR
-                                                                                                                                    	Box	11	1	118	118	4
-TMOBILE	Text	12	2	7	7	1
-GS_EMP_MASTER-MOBILE2	I/O	12	14	10	10	1	CHAR
-TEML	Text	12	32	8	8	1
-GS_EMP_MASTER-EMAIL1	I/O	12	42	75	75	1	CHAR
-TMOB2	Text	13	2	9	9	1
-GS_EMP_MASTER-MOBILE1	I/O	13	14	10	10	1	CHAR
-TEML2	Text	13	32	8	8	1
-GS_EMP_MASTER-EMAIL2	I/O	13	42	75	75	1	CHAR
-                                                                                                                                    	Box	15	1	119	119	5
-TMARSTAT	Text	16	3	16	16	1
-GS_EMP_MASTER-MARITAL_STATUS	I/O	16	20	1	15	1	CHAR
-TBLOODGP	Text	16	65	11	11	1
-GS_EMP_MASTER-BLODD_GROUP	I/O	16	79	5	7	1	CHAR
-TSPOS	Text	17	3	13	13	1
-GS_EMP_MASTER-SPOUSE	I/O	17	20	40	40	1	CHAR
-TGEN	Text	17	68	8	8	1
-R_M	Radio	17	79	1	1	1	CHAR
-R_M	Radio	17	81	4	4	1
-R_F	Radio	17	87	1	1	1	CHAR
-R_F	Radio	17	89	6	6	1
-R_U	Radio	17	96	1	1	1	CHAR
-R_U	Radio	17	98	7	7	1
-                                                                                                                                    	=
-TDOJ	Text	22	3	14	14	1
-GS_EMP_MASTER-DOJ	I/O	22	21	10	10	1	DATS
-TQUAL	Text	22	59	15	15	1
-GS_EMP_MASTER-QUALIFICATION	I/O	22	77	10	10	1	CHAR
-TDESIG	Text	23	3	13	13	1
-GS_EMP_MASTER-DESIGNATION	I/O	23	21	30	30	1	CHAR
-TCTC	Text	23	59	3	3	1
-GS_EMP_MASTER-CTC	I/O	23	77	16	16	1	DEC
-TDEP	Text	24	3	10	10	1
-GS_EMP_MASTER-DEPARTMENT	I/O	24	21	30	30	1	CHAR
-TMANG	Text	24	59	7	7	1
-GS_EMP_MASTER-MANAGER	Check	24	77	1	1	1	CHAR
-			OK	0	0	20	20	1	 OK
-_____	___	___	___	___	___	____                                                                                                                                    	
